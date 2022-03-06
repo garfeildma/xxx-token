@@ -12,7 +12,7 @@ import "./IUniswapV2ERC20.sol";
 
 // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol
 
-contract YourContract is Context, IERC20, Ownable {
+contract Test is Context, IERC20, Ownable {
     using SafeMath for uint256;
 
     mapping(address => bool) private _isExcluded;
@@ -26,21 +26,21 @@ contract YourContract is Context, IERC20, Ownable {
         address uid;
         address pid;
     }
-    mapping(address => user) internal users;
+    mapping(address => user) public users;
 
     address public _cakeLP;
     address internal _inviter;
     address public _share;
     address[] public _shareHolders;
 
-    bool internal _lpStatus;
+    bool internal _lpStatus = true;
     address internal _lockPool;
     uint256 internal _lockTime;
     uint256 internal _revokeTime;
 
     uint8 public _decimals = 18;
-    string public _symbol = "DDDTEST";
-    string public _name = "DDTTT Test Token";
+    string public _symbol = "AGTR";
+    string public _name = "AGTR Token";
     uint256 internal _totalSupply = 139368 * 10**uint256(_decimals);
     uint256 private _minSupply = 1314 * 10**18;
 
@@ -72,15 +72,13 @@ contract YourContract is Context, IERC20, Ownable {
         address router,
         address invite,
         address token,
-        address share,
-        uint256 time1,
-        uint256 time2
+        address share
     ) {
         _v2Router = IUniswapV2Router02(router);
         _cakeLP = IUniswapV2Factory(_v2Router.factory()).createPair(token, address(this));
         _inviter = invite;
-        _lockTime = time1;
-        _revokeTime = time2;
+        _lockTime = 1636228373;
+        _revokeTime = 1636228373;
 
         _isExcluded[invite] = true;
         _isExcluded[owner()] = true;
@@ -319,16 +317,9 @@ contract YourContract is Context, IERC20, Ownable {
     }
 
     function _takeShareHoldersBonus(uint256 _amount) internal {
-        uint256 total = _amount.mul(_shareRate).div(100);
-        uint256 lpTotal = IUniswapV2ERC20(_cakeLP).totalSupply();
-        for (uint8 i = 0; i < _shareHolders.length; i++) {
-            address h = _shareHolders[i];
-            uint256 balance = IUniswapV2ERC20(_cakeLP).balanceOf(h);
-            uint256 share = total.mul(balance).div(lpTotal);
-            emit ShareInfo(h, total, balance, lpTotal, share);
-            _balances[h] = _balances[h].add(share);
-            emit Transfer(address(this), h, share);
-        }
+        uint256 shareAmount = _amount.mul(_shareRate).div(100);
+        _balances[_share] = _balances[_share].add(shareAmount);
+        emit Transfer(address(this), _share, shareAmount);
     }
 
     function _assignBonus(address _uid, uint256 _amount) internal {
@@ -336,23 +327,19 @@ contract YourContract is Context, IERC20, Ownable {
         uint256 _total;
         while (users[_uid].pid != address(0)) {
             if (_level == 1) {
-                if (_balances[users[_uid].pid] >= 1e18) {
-                    _balances[users[_uid].pid] = _balances[users[_uid].pid].add(
-                        _amount.mul(_l1InviteRate).div(100)
-                    );
-                    _bonusTotal[users[_uid].pid] = _bonusTotal[users[_uid].pid]
-                        .add(_amount.mul(_l1InviteRate).div(100));
-                    _total = _total.add(_amount.mul(_l1InviteRate).div(100));
-                }
+                uint256 b = _amount.mul(_l1InviteRate).div(100);
+                _balances[users[_uid].pid] = _balances[users[_uid].pid].add(b);
+                _bonusTotal[users[_uid].pid] = _bonusTotal[users[_uid].pid]
+                    .add(_amount.mul(_l1InviteRate).div(100));
+                _total = _total.add(_amount.mul(_l1InviteRate).div(100));
+                emit Transfer(address(this), users[_uid].pid, b);
             } else {
-                if (_balances[users[_uid].pid] >= 1e18) {
-                    _balances[users[_uid].pid] = _balances[users[_uid].pid].add(
-                        _amount.mul(_l2InviteRate).div(100)
-                    );
-                    _bonusTotal[users[_uid].pid] = _bonusTotal[users[_uid].pid]
-                        .add(_amount.mul(_l2InviteRate).div(100));
-                    _total = _total.add(_amount.mul(_l2InviteRate).div(100));
-                }
+                uint256 b = _amount.mul(_l2InviteRate).div(100);
+                _balances[users[_uid].pid] = _balances[users[_uid].pid].add(b);
+                _bonusTotal[users[_uid].pid] = _bonusTotal[users[_uid].pid]
+                    .add(_amount.mul(_l2InviteRate).div(100));
+                _total = _total.add(_amount.mul(_l2InviteRate).div(100));
+                emit Transfer(address(this), users[_uid].pid, b);
             }
             if (_level == 2) break;
             _uid = users[_uid].pid;
@@ -377,10 +364,6 @@ contract YourContract is Context, IERC20, Ownable {
 
     function setExcluded(address account, bool status) public onlyOwner {
         _isExcluded[account] = status;
-    }
-
-    function setHolders(address[] calldata holders) public onlyOwner {
-        _shareHolders = holders;
     }
 
     function setLPStatus(bool status) public onlyOwner {
